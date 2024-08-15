@@ -1,0 +1,19 @@
+.jira-extention__quote {
+    display: flex;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    background: #b6b6d5;
+    color: #fff;
+    font-size: 30px;
+    line-height: 1;
+    border-radius: 2px;
+    cursor: pointer;
+    position: absolute;
+    z-index: 9999;
+}
+
+.activity-comment .image-wrap img {
+    max-width: 100%;
+    height: auto;
+}

@@ -1,18 +1,6 @@
-const awaitTimer = (condition, callback, iterator) => {
-    let i = iterator || 0;
+import { awaitTimer } from '../modules/awaitTimer.js'; 
 
-    if (condition()) {
-        callback();
-    } else if (i < 10) {
-        i++;
-
-        setTimeout(() => {
-            awaitTimer(condition, callback, i);
-        }, 1000);
-    }
-}
-
-class JiraExtention {
+export class JiraExtention {
     constructor() {
         this.addCommentBlock = document.querySelector('#addcomment');
         this.addCommenteditorContent = document.querySelector('#addcomment .mod-content');
@@ -29,39 +17,10 @@ class JiraExtention {
             return false;
         }
 
-        this.addStyles();
         this.citationInit();
         this.addCopyLinkButtons();
         this.addAnswerButtons();
         this.addLoadMoreEvent();
-    }
-
-    addStyles() {
-        const style = document.createElement('style');
-
-        style.innerHTML = `
-            .jira-extention__quote {
-                display: flex;
-                justify-content: center;
-                width: 20px;
-                height: 20px;
-                background: #b6b6d5;
-                color: #fff;
-                font-size: 30px;
-                line-height: 1;
-                border-radius: 2px;
-                cursor: pointer;
-                position: absolute;
-                z-index: 9999;
-            }
-
-            .activity-comment .image-wrap img {
-                max-width: 100%;
-                height: auto;
-            }
-        `;
-
-        document.head.append(style);
     }
 
     addCopyLinkButtons() {
@@ -279,12 +238,3 @@ class JiraExtention {
         }
     }
 }
-
-awaitTimer(
-    () => {
-        return document.readyState === 'complete';
-    }, 
-    () => {
-        new JiraExtention();
-    }
-);
