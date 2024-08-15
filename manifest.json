@@ -1,0 +1,25 @@
+{
+  "name": "Jira extention",
+  "description": "Добавляет фичи в jira",
+  "version": "1.0",
+  "manifest_version": 3,
+  "content_scripts": [
+    {
+      "run_at": "document_idle",
+      "matches": [
+        "https://jirasw.trassir.com/browse/*"
+      ],
+      "js": [
+        "index.js"
+      ]
+    }
+  ],
+  "action": {
+    "default_icon": {
+      "128": "/icon.png"
+    }
+  },
+  "icons": {
+    "128": "/icon.png"
+  }
+}
