@@ -16,9 +16,9 @@ class JiraExtention {
     constructor() {
         this.addCommentBlock = document.querySelector('#addcomment');
         this.addCommenteditorContent = document.querySelector('#addcomment .mod-content');
-        this.addCommenteditorForm = this.addCommenteditorContent.children[0];
-        this.commentBlocks = document.querySelectorAll('.activity-comment');  
+        this.addCommenteditorForm = this.addCommenteditorContent ? this.addCommenteditorContent.children[0] : null;
         
+        this.commentBlocks = document.querySelectorAll('.activity-comment');  
         this.loadMoreButton = document.querySelector('.show-more-comment-tabpanel');
 
         this.init();
@@ -31,6 +31,7 @@ class JiraExtention {
 
         this.addStyles();
         this.citationInit();
+        this.addCopyLinkButtons();
         this.addAnswerButtons();
         this.addLoadMoreEvent();
     }
@@ -63,28 +64,72 @@ class JiraExtention {
         document.head.append(style);
     }
 
+    addCopyLinkButtons() {
+        this.commentBlocks.forEach(comment => {
+            if (comment.classList.contains('comment-buttons-added')) {
+                return false;
+            }
+
+            const actionBlock = comment.querySelector('.action-links');
+            const link = comment.querySelector('.comment-created-date-link');
+
+            if (!actionBlock) {
+                return false
+            }
+
+            this.addCommentButton(actionBlock, 'Cкопировать ссылку', button => {
+                navigator.clipboard.writeText(link.href)
+                .then(() => {
+                    button.style.setProperty('color', 'green', 'important');
+
+                    setTimeout(() => {
+                        button.style.color = '';
+                    }, 600);
+                });
+            });
+
+            comment.classList.add('comment-button-added');
+        });
+    }
+
     addLoadMoreEvent() {
         if (!this.loadMoreButton) {
             return false;
         }
 
         this.loadMoreButton.addEventListener('click', () => {
-            let i = 0;
             awaitTimer(
                 () => {
                     return document.querySelectorAll('.activity-comment').length !== this.commentBlocks.length;
                 },
                 () => {
                     this.commentBlocks = document.querySelectorAll('.activity-comment');
+                    this.addCopyLinkButtons();
                     this.addAnswerButtons();
                 }
             );
         });
     }
 
+    addCommentButton(block, name, callback) {
+        const divider = document.createElement('span');
+        divider.className = 'action-links__divider';
+        
+        const button = document.createElement('a');
+        button.href = 'javascript:void(0)';
+        button.textContent = name;
+
+        button.addEventListener('click', () => {
+            callback(button);
+        });
+
+        block.prepend(divider);
+        block.prepend(button);
+    }
+
     addAnswerButtons() {
         this.commentBlocks.forEach(comment => {
-            if (comment.classList.contains('answer-button-added')) {
+            if (comment.classList.contains('comment-buttons-added')) {
                 return false;
             }
 
@@ -98,24 +143,14 @@ class JiraExtention {
                 return false;
             }
 
-            const divider = document.createElement('span');
-            divider.className = 'action-links__divider';
-            
-            const button = document.createElement('a');
-            button.href = 'javascript:void(0)';
-            button.textContent = 'Ответить';
-
-            button.addEventListener('click', () => {
+            this.addCommentButton(actionBlock, 'Ответить', () => {
                 if (authorName && authorHref && authorRel) {
                     const content = `${this.createAutohorLink(authorHref, authorRel, authorName)}`;
                     this.setComment(content);
                 }
             });
 
-            actionBlock.prepend(divider);
-            actionBlock.prepend(button);
-
-            comment.classList.add('answer-button-added');
+            comment.classList.add('comment-button-added');
         });
     }
 
@@ -204,8 +239,6 @@ class JiraExtention {
     }
 
     setComment(content) {
-        let i = 0;
-        
         if (!this.addCommentBlock.classList.contains('active')) {
             this.openEditor();
         }

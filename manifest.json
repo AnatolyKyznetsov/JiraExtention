@@ -1,7 +1,7 @@
 {
   "name": "Jira extention",
   "description": "Добавляет фичи в jira",
-  "version": "1.0",
+  "version": "1.01",
   "manifest_version": 3,
   "content_scripts": [
     {
