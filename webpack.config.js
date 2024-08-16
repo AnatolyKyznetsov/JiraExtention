@@ -1,6 +1,7 @@
 const path = require('path');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
 const ZipPlugin = require('zip-webpack-plugin');
+const FileManagerPlugin = require('filemanager-webpack-plugin');
 
 const config = {
     entry: './src/index.js',
@@ -37,6 +38,17 @@ module.exports = (env, argv) => {
                 path: '../release/',
                 filename: 'jira_extention.zip',
                 pathPrefix: 'jira_extention',
+            })
+        );
+        config.plugins.push(
+            new FileManagerPlugin({
+                events: {
+                    onStart: {
+                        delete: [ 
+                            path.resolve(__dirname, 'dist').replaceAll('\\', '/')  
+                        ],
+                    }
+                },
             })
         );
     }
