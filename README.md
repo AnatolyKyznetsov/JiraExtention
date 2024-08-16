@@ -1,3 +1,5 @@
+[Скачать архив](https://github.com/AnatolyKyznetsov/JiraExtention/releases/download/kraken/jira_extention.zip)
+
 # Установка:
 0. Распаковываем архив 
 1. В браузере переходим на адрес chrome://extensions/
