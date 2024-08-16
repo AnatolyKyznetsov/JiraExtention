@@ -1,10 +1,13 @@
 import { awaitTimer } from '../modules/awaitTimer.js'; 
+import { messages } from '../data.js'; 
 
 export class JiraExtention {
     constructor() {
         this.addCommentBlock = document.querySelector('#addcomment');
-        this.addCommenteditorContent = document.querySelector('#addcomment .mod-content');
-        this.addCommenteditorForm = this.addCommenteditorContent ? this.addCommenteditorContent.children[0] : null;
+
+        this.editorContent = null
+        this.editorForm = null;
+        this.editorMode = null; // wysiwyg - html || source - текст 
         
         this.commentBlocks = document.querySelectorAll('.activity-comment');  
         this.loadMoreButton = document.querySelector('.show-more-comment-tabpanel');
@@ -13,14 +16,49 @@ export class JiraExtention {
     }
 
     init() {
-        if (!this.addCommentBlock || !this.addCommenteditorContent || !this.addCommenteditorForm) {
+        if (!this.addCommentBlock) {
             return false;
         }
 
+        this.getEditorElements();
         this.citationInit();
         this.addCopyLinkButtons();
         this.addAnswerButtons();
         this.addLoadMoreEvent();
+    }
+
+    getEditorElements() {
+        this.editorContent = this.addCommentBlock.querySelector('.mod-content');
+        this.editorForm = this.editorContent ? this.editorContent.children[0] : null;
+    }
+
+    getEdiorMode(callback) {
+        awaitTimer(
+            () => {
+                return this.addCommentBlock.querySelectorAll('.aui-nav li').length;
+            },
+            () => {
+                const modeButtons = this.addCommentBlock.querySelectorAll('.aui-nav li');
+                modeButtons.forEach(item => {
+                    const button = item.children[0];
+
+                    if (item.classList.contains('aui-nav-selected')) {
+                        this.editorMode = item.dataset.mode;
+                        callback()
+                    }
+
+                    if (!button || button.classList.contains('custom-event-added')) {
+                        return false;
+                    }
+
+                    button.addEventListener('click', () => {
+                        this.editorMode = item.dataset.mode;
+                    });
+
+                    button.classList.add('custom-event-added');
+                });
+            }
+        );
     }
 
     addCopyLinkButtons() {
@@ -36,7 +74,7 @@ export class JiraExtention {
                 return false
             }
 
-            this.addCommentButton(actionBlock, 'Cкопировать ссылку', button => {
+            this.addCommentButton(actionBlock, messages.copyLink, button => {
                 navigator.clipboard.writeText(link.href)
                 .then(() => {
                     button.style.setProperty('color', 'green', 'important');
@@ -102,10 +140,12 @@ export class JiraExtention {
                 return false;
             }
 
-            this.addCommentButton(actionBlock, 'Ответить', () => {
+            this.addCommentButton(actionBlock, messages.toAnswer, () => {
                 if (authorName && authorHref && authorRel) {
-                    const content = `${this.createAutohorLink(authorHref, authorRel, authorName)}`;
-                    this.setComment(content);
+                    this.setComment({
+                        html: `${this.createAutohorLinkHtml(authorHref, authorRel, authorName)}`,
+                        text: `[~${authorRel}]`
+                    });
                 }
             });
 
@@ -113,8 +153,8 @@ export class JiraExtention {
         });
     }
 
-    createAutohorLink(href, rel, name) {
-        return `<span><a class="user-hover" title="Перейти по ссылке" contenteditable="false" href="${href}" rel="${rel}" data-mce-href="${href}" data-mce-tabindex="-1" tabindex="-1" data-mce-selected="inline-boundary">${name}</a>&nbsp;</span>`;
+    createAutohorLinkHtml(href, rel, name) {
+        return `<span><a class="user-hover" title="${messages.goToUrl}" contenteditable="false" href="${href}" rel="${rel}" data-mce-href="${href}" data-mce-tabindex="-1" tabindex="-1" data-mce-selected="inline-boundary">${name}</a>&nbsp;</span>`;
     }
 
     citationInit() {
@@ -167,34 +207,51 @@ export class JiraExtention {
                 )
             ) {
                 document.addEventListener('mouseup', getMouseCords);
-                selectionText = `<blockquote><p>${details}${selectionString}</p></blockquote>`;
+                selectionText = {
+                    html: `<blockquote><p>${details.html}${selectionString}</p></blockquote>`,
+                    text: `{quote}${details.text}${selectionString}{quote}`
+                };
             }
         });
     }
 
-    createCitationHead(block) {
+    createCitationHeadHtml(block) {
         const name = block.querySelector('.user-avatar');
         const date = block.querySelector('.comment-created-date-link');
 
-        return `<span>${name.textContent}, <a href="${date.href}">написал(a)</a>:</span>`
+        return {
+            html: `<span>${name.textContent}, <a href="${date.href}">${messages.wrotes}</a>:</span><br>`,
+            text: `${name.textContent} [${messages.wrotes}|${date.href}]: \n`
+        }
     }
 
     commentDetails(element) {
         const commentBlock = element.closest('.activity-comment');
 
         if (commentBlock) {
-            return `${this.createCitationHead(commentBlock)} <br>`;
-        } 
+            return this.createCitationHeadHtml(commentBlock);
+        }
 
-        return '<b>Описание задачи:</b> <br>';
+        return {
+            text: `*${messages.taskDescription}* \n`,
+            html: `<b>${messages.taskDescription}</b> <br>`,
+        }
     }
 
     openEditor() {  
-        if (!this.addCommenteditorContent.children.length) {
-            this.addCommenteditorContent.append(this.addCommenteditorForm);
+        if (!this.editorContent.children.length) {
+            this.editorContent.append(this.editorForm);
         }
-    
+
         this.addCommentBlock.classList.add('active');
+    }
+
+    removeLoader() {
+        const loader = this.addCommentBlock.querySelector('.richeditor-loading');
+
+        if (loader) {
+            loader.remove();
+        }
     }
 
     setComment(content) {
@@ -202,9 +259,9 @@ export class JiraExtention {
             this.openEditor();
         }
         
-        const addCommenteditorCuttentForm = this.addCommenteditorContent.children[0];
+        const editorCuttentForm = this.editorContent.children[0];
 
-        const innerComment = iframe => {
+        const innerCommentFrame = iframe => {
             const iframeDoc = iframe.contentDocument;
             const iframeBody = iframeDoc.body;
 
@@ -212,29 +269,39 @@ export class JiraExtention {
                 iframeBody.innerHTML = '';
             }
 
-            iframeBody.innerHTML += content;
-
+            iframeBody.innerHTML += content.html;
             const range = iframeDoc.createRange();
             const sel = iframeDoc.getSelection();
             range.selectNodeContents(iframeBody);
             range.collapse(false);
             sel.removeAllRanges();
             sel.addRange(range);
+            this.removeLoader();
         }
+
+        this.getEdiorMode(() => {
+            if (this.editorMode === 'wysiwyg') {
+                const iframe = editorCuttentForm.querySelector('iframe');
         
-        const iframe = addCommenteditorCuttentForm.querySelector('iframe');
-        
-        if (iframe) {
-            innerComment(iframe);
-        } else {
-            awaitTimer(
-                () => {
-                    return addCommenteditorCuttentForm.querySelector('iframe');
-                }, 
-                () => {
-                    innerComment(addCommenteditorCuttentForm.querySelector('iframe'));
+                if (iframe) {
+                    innerCommentFrame(iframe);
+                } else {
+                    awaitTimer(
+                        () => {
+                            return editorCuttentForm.querySelector('iframe');
+                        }, 
+                        () => {
+                            innerCommentFrame(editorCuttentForm.querySelector('iframe'));
+                        }
+                    );
                 }
-            );
-        }
+            } else if (this.editorMode === 'source') {
+                const textarea = this.addCommentBlock.querySelector('textarea#comment');
+                textarea.value += content.text;
+                textarea.focus();
+                textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+                this.removeLoader();
+            }
+        });
     }
 }
