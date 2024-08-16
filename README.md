@@ -1,4 +1,5 @@
 # Jira extention
+Расширение работает на детальных страницах задач проектов OIP и OIPPMF, https://jirasw.trassir.com/browse/*
 
 [Скачать архив](https://github.com/AnatolyKyznetsov/JiraExtention/releases/download/kraken/jira_extention.zip)
 
@@ -14,7 +15,7 @@
 3. Слева появится кнопка "Загрузить распакованное расширение", жмем.
 4. Указываем путь к распакованному архиву.
 
-Расширение работает на детальных страницах задач проектов OIP и OIPPMF, https://jirasw.trassir.com/browse/*
+## Версии:
 
 ### v 1.1
 - Под комментарием добавлена кнопка скопировать ссылку
