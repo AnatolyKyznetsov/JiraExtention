@@ -2,11 +2,13 @@ import { awaitTimer } from '../modules/awaitTimer.js';
 import { messages } from '../data.js'; 
 
 export class JiraExtention {
-    constructor() {
+    constructor(linkToCommentClassName) {
         this.addCommentBlock = document.querySelector('#addcomment');
+        this.linkToCommentClassName = linkToCommentClassName;
 
         this.editorContent = null
         this.editorForm = null;
+
         this.editorMode = null; // wysiwyg - html || source - текст 
         
         this.commentBlocks = document.querySelectorAll('.activity-comment');  
@@ -15,8 +17,12 @@ export class JiraExtention {
         this.init();
     }
 
+    openEditor() {}
+    setComment() {}
+    getEditorElements() {}
+
     init() {
-        if (!this.addCommentBlock) {
+        if (!this.addCommentBlock || !this.linkToCommentClassName) {
             return false;
         }
 
@@ -25,11 +31,6 @@ export class JiraExtention {
         this.addCopyLinkButtons();
         this.addAnswerButtons();
         this.addLoadMoreEvent();
-    }
-
-    getEditorElements() {
-        this.editorContent = this.addCommentBlock.querySelector('.mod-content');
-        this.editorForm = this.editorContent ? this.editorContent.children[0] : null;
     }
 
     getEdiorMode(callback) {
@@ -68,7 +69,7 @@ export class JiraExtention {
             }
 
             const actionBlock = comment.querySelector('.action-links');
-            const link = comment.querySelector('.comment-created-date-link');
+            const link = comment.querySelector(this.linkToCommentClassName);
 
             if (!actionBlock) {
                 return false
@@ -217,11 +218,11 @@ export class JiraExtention {
 
     createCitationHeadHtml(block) {
         const name = block.querySelector('.user-avatar');
-        const date = block.querySelector('.comment-created-date-link');
+        const link = block.querySelector(this.linkToCommentClassName);
 
         return {
-            html: `<span>${name.textContent}, <a href="${date.href}">${messages.wrotes}</a>:</span><br>`,
-            text: `${name.textContent} [${messages.wrotes}|${date.href}]: \n`
+            html: `<span>${name.textContent}, <a href="${link.href}">${messages.wrotes}</a>:</span><br>`,
+            text: `${name.textContent} [${messages.wrotes}|${link.href}]: \n`
         }
     }
 
@@ -238,70 +239,11 @@ export class JiraExtention {
         }
     }
 
-    openEditor() {  
-        if (!this.editorContent.children.length) {
-            this.editorContent.append(this.editorForm);
-        }
-
-        this.addCommentBlock.classList.add('active');
-    }
-
     removeLoader() {
         const loader = this.addCommentBlock.querySelector('.richeditor-loading');
 
         if (loader) {
             loader.remove();
         }
-    }
-
-    setComment(content) {
-        if (!this.addCommentBlock.classList.contains('active')) {
-            this.openEditor();
-        }
-        
-        const editorCuttentForm = this.editorContent.children[0];
-
-        const innerCommentFrame = iframe => {
-            const iframeDoc = iframe.contentDocument;
-            const iframeBody = iframeDoc.body;
-
-            if (iframeBody.innerHTML === '<p><br data-mce-bogus="1"></p>') {
-                iframeBody.innerHTML = '';
-            }
-
-            iframeBody.innerHTML += content.html;
-            const range = iframeDoc.createRange();
-            const sel = iframeDoc.getSelection();
-            range.selectNodeContents(iframeBody);
-            range.collapse(false);
-            sel.removeAllRanges();
-            sel.addRange(range);
-            this.removeLoader();
-        }
-
-        this.getEdiorMode(() => {
-            if (this.editorMode === 'wysiwyg') {
-                const iframe = editorCuttentForm.querySelector('iframe');
-        
-                if (iframe) {
-                    innerCommentFrame(iframe);
-                } else {
-                    awaitTimer(
-                        () => {
-                            return editorCuttentForm.querySelector('iframe');
-                        }, 
-                        () => {
-                            innerCommentFrame(editorCuttentForm.querySelector('iframe'));
-                        }
-                    );
-                }
-            } else if (this.editorMode === 'source') {
-                const textarea = this.addCommentBlock.querySelector('textarea#comment');
-                textarea.value += content.text;
-                textarea.focus();
-                textarea.setSelectionRange(textarea.value.length, textarea.value.length);
-                this.removeLoader();
-            }
-        });
     }
 }
