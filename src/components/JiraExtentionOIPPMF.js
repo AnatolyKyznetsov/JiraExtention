@@ -3,7 +3,9 @@ import { awaitTimer } from '../modules/awaitTimer.js';
 
 export class JiraExtentionOIPPMF extends JiraExtention {
     constructor() {
-        super('.comment-created-date-link');
+        super({
+            linkToComment: '.comment-created-date-link',
+        });
     }
 
     getEditorElements() {

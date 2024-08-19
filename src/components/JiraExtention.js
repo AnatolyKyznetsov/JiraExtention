@@ -2,17 +2,14 @@ import { awaitTimer } from '../modules/awaitTimer.js';
 import { messages } from '../data.js'; 
 
 export class JiraExtention {
-    constructor(linkToCommentClassName) {
+    constructor(selectors) {
         this.addCommentBlock = document.querySelector('#addcomment');
-        this.linkToCommentClassName = linkToCommentClassName;
-
-        this.editorContent = null
-        this.editorForm = null;
+        this.selectors = selectors;
 
         this.editorMode = null; // wysiwyg - html || source - текст 
-        
-        this.commentBlocks = document.querySelectorAll('.activity-comment');  
-        this.loadMoreButton = document.querySelector('.show-more-comment-tabpanel');
+        this.editorContent = null
+        this.editorForm = null;
+        this.commentBlocks = null;
 
         this.init();
     }
@@ -22,15 +19,65 @@ export class JiraExtention {
     getEditorElements() {}
 
     init() {
-        if (!this.addCommentBlock || !this.linkToCommentClassName) {
+        if (!this.addCommentBlock || !this.selectors) {
             return false;
         }
 
+        this.initEdiorOpenObserver();
         this.getEditorElements();
         this.citationInit();
+        this.addCommentsTools();
+        this.addLoadMoreEvent();
+    }
+
+    addCommentsTools() {
+        this.commentBlocks = document.querySelectorAll('.activity-comment');
+
         this.addCopyLinkButtons();
         this.addAnswerButtons();
-        this.addLoadMoreEvent();
+        this.addCommentEditEvent();
+    }
+
+    addCommentEditEvent() {
+        const self = this;
+
+        this.commentBlocks.forEach(comment => {
+            if (comment.classList.contains('edit-button-event-added')) {
+                return false;
+            }
+
+            const button = comment.querySelector('.edit-comment');
+
+            button?.addEventListener('click', () => {
+                const observerEvent = (mutationsList, observer) => {
+                    for (let mutation of mutationsList) {
+                        if (
+                            mutation.addedNodes[0] && 
+                            (
+                                mutation.addedNodes[0].id === 'edit-comment' || 
+                                mutation.addedNodes[0].classList.contains('js-cannedresponses-context')
+                            )
+                        ) {
+                            const observerComments = new MutationObserver((_, observer) => {
+                                observer.disconnect();
+                                self.addCommentsTools();
+                            });
+                
+                            const firstCommentReaction = document.querySelector('jira-comment-reactions');
+                            observerComments.observe(firstCommentReaction, { childList: true });
+
+                            observer.disconnect();
+                            break;
+                        }
+                    }
+                };
+    
+                const observer = new MutationObserver(observerEvent);
+                observer.observe(document.body, { childList: true });
+            });
+
+            comment.classList.add('edit-button-event-added');
+        })
     }
 
     getEdiorMode(callback) {
@@ -62,14 +109,54 @@ export class JiraExtention {
         );
     }
 
+    initCommentContainerObserver() {
+        const target = document.querySelector('#issue_actions_container');
+
+        if (!target) {
+            return false
+        }
+
+        const self = this;
+        
+        const observerEvent = (_, observer) => {
+            observer.disconnect();
+            self.addCommentsTools();
+        };
+        
+        const observer = new MutationObserver(observerEvent);
+        observer.observe(target, { childList: true });
+
+        return observer;
+    }
+
+    initEdiorOpenObserver() {
+        const self = this;
+        let commentContainerObserver = null;
+
+        const observerEvent = mutationsList => {
+            for (let mutation of mutationsList) {
+                if (mutation.target.classList.contains('active')) {
+                    commentContainerObserver = self.initCommentContainerObserver();
+                } else {
+                    if (commentContainerObserver) {
+                        commentContainerObserver.disconnect();
+                    }
+                }
+            }
+        };
+        
+        const observer = new MutationObserver(observerEvent);
+        observer.observe(this.addCommentBlock, { attributeFilter: ['class'] });
+    }
+
     addCopyLinkButtons() {
         this.commentBlocks.forEach(comment => {
-            if (comment.classList.contains('comment-buttons-added')) {
+            if (comment.classList.contains('copy-button-added')) {
                 return false;
             }
 
             const actionBlock = comment.querySelector('.action-links');
-            const link = comment.querySelector(this.linkToCommentClassName);
+            const link = comment.querySelector(this.selectors.linkToComment);
 
             if (!actionBlock) {
                 return false
@@ -86,26 +173,15 @@ export class JiraExtention {
                 });
             });
 
-            comment.classList.add('comment-button-added');
+            comment.classList.add('copy-button-added');
         });
     }
 
     addLoadMoreEvent() {
-        if (!this.loadMoreButton) {
-            return false;
-        }
-
-        this.loadMoreButton.addEventListener('click', () => {
-            awaitTimer(
-                () => {
-                    return document.querySelectorAll('.activity-comment').length !== this.commentBlocks.length;
-                },
-                () => {
-                    this.commentBlocks = document.querySelectorAll('.activity-comment');
-                    this.addCopyLinkButtons();
-                    this.addAnswerButtons();
-                }
-            );
+        document.addEventListener('click', e => {
+            if (e.target.closest('.show-more-comment-tabpanel')) {
+                this.initCommentContainerObserver();
+            }
         });
     }
 
@@ -127,7 +203,7 @@ export class JiraExtention {
 
     addAnswerButtons() {
         this.commentBlocks.forEach(comment => {
-            if (comment.classList.contains('comment-buttons-added')) {
+            if (comment.classList.contains('answer-button-added')) {
                 return false;
             }
 
@@ -150,7 +226,7 @@ export class JiraExtention {
                 }
             });
 
-            comment.classList.add('comment-button-added');
+            comment.classList.add('answer-button-added');
         });
     }
 
@@ -159,16 +235,23 @@ export class JiraExtention {
     }
 
     citationInit() {
+        const pageContent = document.querySelector('.issue-view');
+        
+        if (!pageContent) {
+            return false;
+        }
+        
         let selectionText = null;
         let currentQuote = null;
-    
+
         const createButton = (x, y) => {
+            const main = document.querySelector('#main');
             const div = document.createElement('div');
             div.className = 'jira-extention__quote';
             div.innerHTML = '&#8221;'
     
-            div.style.top = `${y}px`;
-            div.style.left = `${x + 20}px`;
+            div.style.top = `${y + pageContent.scrollTop - (document.body.clientHeight - main.clientHeight) }px`;
+            div.style.left = `${x + pageContent.scrollLeft - (document.body.clientWidth - main.clientWidth) + 20}px`;
             
             div.addEventListener('click', () => {
                 div.remove();
@@ -176,7 +259,7 @@ export class JiraExtention {
             });
     
             currentQuote = div;
-            document.body.append(div);
+            pageContent.append(div);
             document.removeEventListener('mouseup', getMouseCords);
         }
     
@@ -218,7 +301,7 @@ export class JiraExtention {
 
     createCitationHeadHtml(block) {
         const name = block.querySelector('.user-avatar');
-        const link = block.querySelector(this.linkToCommentClassName);
+        const link = block.querySelector(this.selectors.linkToComment);
 
         return {
             html: `<span>${name.textContent}, <a href="${link.href}">${messages.wrotes}</a>:</span><br>`,

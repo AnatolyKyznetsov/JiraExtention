@@ -2,7 +2,60 @@ import { JiraExtention } from './JiraExtention.js';
 
 export class JiraExtentionOIP extends JiraExtention {
     constructor() {
-        super('.sd-comment-permalink');
+        super({
+            linkToComment: '.sd-comment-permalink',
+        });
+
+        this.commentFormSubmited = false;
+    }
+
+    initAddCommentObserver() {
+        const self = this;
+        
+        const observerEvent = (mutationsList, observer) => {
+            for (let mutation of mutationsList) {
+                if (
+                    !self.commentFormSubmited &&
+                    mutation.target.localName === 'button' &&
+                    mutation.target.classList.contains('aui-button') &&
+                    mutation.target.classList.contains('sd-internal-submit')
+                ) {
+                    self.commentFormSubmited = true;
+                }
+
+                if (mutation.target.classList.contains('activity-comment')) {
+                    self.commentFormSubmited = false;
+                    self.addCommentsTools();
+                    observer.disconnect();
+                    break;
+                }
+            }
+        };
+        
+        const observer = new MutationObserver(observerEvent);
+        observer.observe(document.body, { childList: true, subtree: true });
+
+        return observer;
+    }
+
+    initEdiorOpenObserver() {
+        const self = this;
+        let commentContainerObserver = null;
+
+        const observerEvent = mutationsList => {
+            for (let mutation of mutationsList) {
+                if (mutation.target.classList.contains('active')) {
+                    commentContainerObserver = self.initAddCommentObserver();
+                } else {
+                    if (commentContainerObserver && !self.commentFormSubmited) {
+                        commentContainerObserver.disconnect();
+                    }
+                }
+            }
+        };
+        
+        const observer = new MutationObserver(observerEvent);
+        observer.observe(this.addCommentBlock, { attributeFilter: ['class'] });
     }
 
     openEditor() {
